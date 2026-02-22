@@ -316,6 +316,7 @@ function getDashboardStatus() {
 function renderDashboardHtml() {
   const status = getDashboardStatus();
   const botState = status.botReady ? 'Online' : 'Starting...';
+  const botStateClass = status.botReady ? 'status-online' : 'status-starting';
   const ping = status.pingMs == null ? '-' : `${status.pingMs} ms`;
   const botTag = status.botTag || 'Nicht verbunden';
 
@@ -323,6 +324,7 @@ function renderDashboardHtml() {
     const template = fs.readFileSync(DASHBOARD_FILE, 'utf8');
     return template
       .replace(/\{\{BOT_STATE\}\}/g, escapeHtml(botState))
+      .replace(/\{\{BOT_STATE_CLASS\}\}/g, botStateClass)
       .replace(/\{\{BOT_TAG\}\}/g, escapeHtml(botTag))
       .replace(/\{\{GUILDS\}\}/g, escapeHtml(String(status.guilds)))
       .replace(/\{\{PING\}\}/g, escapeHtml(ping))

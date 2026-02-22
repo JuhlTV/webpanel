@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juhl Network Bot Dashboard</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0b1220 0%, #1a1f35 100%);
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      color: #9ca3af;
+      font-size: 1.1rem;
+    }
+    
+    .card {
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+    
+    .status-online {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .status-starting {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fcd34d;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .stat-item {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    
+    .stat-item:hover {
+      transform: translateY(-2px);
+      border-color: rgba(102, 126, 234, 0.4);
+    }
+    
+    .stat-label {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    
+    .info-section {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .info-section h3 {
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      color: #cbd5e1;
+    }
+    
+    .endpoint-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    
+    .endpoint {
+      display: inline-block;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(100, 116, 139, 0.3);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: #93c5fd;
+      transition: all 0.2s;
+    }
+    
+    .endpoint:hover {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    
+    @media (max-width: 600px) {
+      .header h1 { font-size: 2rem; }
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎮 Juhl Network</h1>
+      <p>Discord Bot Dashboard</p>
+    </div>
+    
+    <div class="card">
+      <div class="status-badge {{BOT_STATE_CLASS}}">
+        {{BOT_STATE}}
+      </div>
+      
+      <h2 style="margin-bottom: 10px; font-size: 1.3rem;">Bot Status</h2>
+      <p style="color: #9ca3af; margin-bottom: 25px;">{{BOT_TAG}}</p>
+      
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-label">Server</div>
+          <div class="stat-value">{{GUILDS}}</div>
+        </div>
+        
+        <div class="stat-item">
+          <div class="stat-label">Latenz</div>
+          <div class="stat-value">{{PING}}</div>
+        </div>
+        
+        <div class="stat-item">
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value">{{UPTIME}}s</div>
+        </div>
+        
+        <div class="stat-item">
+          <div class="stat-label">Server Time</div>
+          <div class="stat-value" style="font-size: 0.9rem;">{{NOW}}</div>
+        </div>
+      </div>
+      
+      <div class="info-section">
+        <h3>📡 API Endpoints</h3>
+        <div class="endpoint-list">
+          <span class="endpoint">/</span>
+          <span class="endpoint">/health</span>
+          <span class="endpoint">/api/status</span>
+        </div>
+      </div>
+      
+      <div class="footer">
+        Powered by Railway • Discord.js v14
+      </div>
+    </div>
+  </div>
+</body>
+</html>
