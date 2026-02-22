@@ -10,7 +10,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "discord.js": "^14.14.1"
+    "discord.js": "^14.14.1",
+    "express": "^4.18.2",
+    "cookie-session": "^2.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
