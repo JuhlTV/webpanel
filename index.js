@@ -211,6 +211,10 @@ async function exchangeCode(code) {
 const commands = [
   new SlashCommandBuilder().setName('ping').setDescription('Zeigt die Bot-Latenz.'),
   new SlashCommandBuilder()
+    .setName('dashboard')
+    .setDescription('Zeigt den Link zum Bot Dashboard (nur für Admins)')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
+  new SlashCommandBuilder()
     .setName('mod')
     .setDescription('Moderationsbefehle')
     .addSubcommand(s => s.setName('warn').setDescription('Warnt ein Mitglied').addUserOption(o => o.setName('user').setDescription('Ziel').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Grund')))
@@ -270,6 +274,30 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'ping') {
       await interaction.reply(`🏓 Pong! ${client.ws.ping}ms`);
     }
+
+    if (interaction.commandName === 'dashboard') {
+      // Check for Administrator permission
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return await interaction.reply({
+          content: '❌ Du brauchst Administrator-Rechte um diesen Command zu nutzen!',
+          ephemeral: true
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0x667eea)
+        .setTitle('🎮 Bot Dashboard')
+        .setDescription('Verwalte den Bot über das Web Dashboard!')
+        .addFields(
+          { name: '🔗 Dashboard Link', value: `[Hier klicken](${PUBLIC_URL})` },
+          { name: '📊 Features', value: '• Channel Konfiguration\n• Rollen Management\n• AutoMod Settings\n• Live Bot Stats' }
+        )
+        .setFooter({ text: 'Nur für Admins sichtbar' })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
     // Add more command handlers here...
   } catch (err) {
     console.error(err);
@@ -304,90 +332,62 @@ function canManageGuild(req, guildId) {
   return (permissions & BigInt(0x20)) === BigInt(0x20); // MANAGE_GUILD
 }
 
-// Home page
+const DASHBOARD_FILE = path.join(process.cwd(), 'dashboard.html');
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getDashboardStatus() {
+  const ready = client.isReady();
+  return {
+    ok: true,
+    service: 'discord-bot-dashboard',
+    botReady: ready,
+    botTag: ready ? client.user.tag : null,
+    pingMs: ready ? client.ws.ping : null,
+    guilds: ready ? client.guilds.cache.size : 0,
+    uptimeSec: Math.floor(process.uptime()),
+    now: new Date().toISOString(),
+  };
+}
+
+function renderDashboardHtml() {
+  const status = getDashboardStatus();
+  const botState = status.botReady ? 'Online' : 'Starting...';
+  const botStateClass = status.botReady ? 'status-online' : 'status-starting';
+  const ping = status.pingMs == null ? '-' : `${status.pingMs} ms`;
+  const botTag = status.botTag || 'Nicht verbunden';
+
+  try {
+    const template = fs.readFileSync(DASHBOARD_FILE, 'utf8');
+    return template
+      .replace(/\{\{BOT_STATE\}\}/g, escapeHtml(botState))
+      .replace(/\{\{BOT_STATE_CLASS\}\}/g, botStateClass)
+      .replace(/\{\{BOT_TAG\}\}/g, escapeHtml(botTag))
+      .replace(/\{\{GUILDS\}\}/g, escapeHtml(String(status.guilds)))
+      .replace(/\{\{PING\}\}/g, escapeHtml(ping))
+      .replace(/\{\{UPTIME\}\}/g, escapeHtml(String(status.uptimeSec)))
+      .replace(/\{\{NOW\}\}/g, escapeHtml(status.now));
+  } catch (err) {
+    return `<!DOCTYPE html>
+<html><head><title>Dashboard Error</title></head>
+<body style="font-family: sans-serif; text-align: center; padding: 50px;">
+<h1>⚠️ Dashboard nicht gefunden</h1>
+<p>dashboard.html fehlt!</p>
+<p>Bot Status: ${status.botReady ? '✅ Online' : '❌ Offline'}</p>
+</body></html>`;
+  }
+}
+
+// Home page - Render Dashboard
 app.get('/', (req, res) => {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    return res.send(`
-      <!DOCTYPE html>
-      <html lang="de">
-      <head><meta charset="utf-8"><title>Juhl Network Bot</title></head>
-      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-        <h1>⚠️ Dashboard nicht konfiguriert</h1>
-        <p>Bitte setze CLIENT_ID und CLIENT_SECRET als Environment Variables</p>
-        <p>Bot Status: ${client.isReady() ? '✅ Online' : '❌ Offline'}</p>
-      </body>
-      </html>
-    `);
-  }
-
-  if (req.session.user) {
-    return res.redirect('/dashboard');
-  }
-
-  const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&response_type=code&scope=${OAUTH_SCOPES.join('%20')}`;
-
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="de">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Juhl Network Bot Dashboard</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: 'Segoe UI', sans-serif;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-        .container {
-          text-align: center;
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          padding: 60px 40px;
-          border-radius: 20px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-          max-width: 500px;
-        }
-        h1 { font-size: 2.5rem; margin-bottom: 20px; }
-        p { font-size: 1.1rem; margin-bottom: 30px; opacity: 0.9; }
-        .btn {
-          display: inline-block;
-          padding: 15px 40px;
-          background: white;
-          color: #667eea;
-          text-decoration: none;
-          border-radius: 10px;
-          font-weight: 600;
-          font-size: 1.1rem;
-          transition: transform 0.2s;
-        }
-        .btn:hover { transform: scale(1.05); }
-        .status {
-          margin-top: 30px;
-          padding: 15px;
-          background: rgba(255,255,255,0.2);
-          border-radius: 10px;
-          font-size: 0.9rem;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>🎮 Juhl Network</h1>
-        <p>Bot Management Dashboard</p>
-        <a href="${authUrl}" class="btn">Mit Discord anmelden</a>
-        <div class="status">
-          Bot Status: ${client.isReady() ? '✅ Online' : '⏳ Verbinde...'}
-        </div>
-      </div>
-    </body>
-    </html>
-  `);
+  res.send(renderDashboardHtml());
 });
 
 // OAuth callback
@@ -798,6 +798,92 @@ app.post('/api/config/:guildId/automod', requireAuth, (req, res) => {
   saveStore();
 
   res.json({ success: true });
+});
+
+// Simple API endpoints (ohne Auth für Single-Guild Dashboard)
+app.get('/api/config', (req, res) => {
+  try {
+    // Get first guild where bot is
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+      return res.json({ error: 'Bot ist auf keinem Server' });
+    }
+
+    const cfg = getGuildConfig(guild.id);
+    const channels = guild.channels.cache
+      .filter(c => c.isTextBased())
+      .map(c => ({ id: c.id, name: c.name }));
+    const roles = guild.roles.cache.map(r => ({ id: r.id, name: r.name }));
+
+    res.json({
+      success: true,
+      config: cfg,
+      channels: channels,
+      roles: roles,
+      guildId: guild.id,
+      guildName: guild.name,
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.post('/api/config/channels', express.json(), (req, res) => {
+  try {
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+      return res.json({ success: false, error: 'Bot ist auf keinem Server' });
+    }
+
+    const cfg = getGuildConfig(guild.id);
+    cfg.welcomeChannelId = req.body.welcomeChannelId || null;
+    cfg.leaveChannelId = req.body.leaveChannelId || null;
+    cfg.modLogChannelId = req.body.modLogChannelId || null;
+    cfg.suggestionChannelId = req.body.suggestionChannelId || null;
+    saveStore();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/config/roles', express.json(), (req, res) => {
+  try {
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+      return res.json({ success: false, error: 'Bot ist auf keinem Server' });
+    }
+
+    const cfg = getGuildConfig(guild.id);
+    cfg.staffRoleId = req.body.staffRoleId || null;
+    cfg.autoroleId = req.body.autoroleId || null;
+    saveStore();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/config/automod', express.json(), (req, res) => {
+  try {
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+      return res.json({ success: false, error: 'Bot ist auf keinem Server' });
+    }
+
+    const cfg = getGuildConfig(guild.id);
+    cfg.automod.enabled = req.body.enabled === true;
+    cfg.automod.antiInvite = req.body.antiInvite === true;
+    cfg.automod.antiLink = req.body.antiLink === true;
+    cfg.automod.spamMax = parseInt(req.body.spamMax) || 6;
+    saveStore();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // Health check
